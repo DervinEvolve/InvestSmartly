@@ -13,6 +13,7 @@ import requests
 import ta
 import numpy as np
 from user_accounts import create_user, authenticate_user, get_personalized_recommendations, update_user_preferences, get_user_watchlist, update_user_watchlist
+from educational_resources import display_educational_resources
 
 st.set_page_config(page_title="InvestSmartly", layout="wide")
 
@@ -508,7 +509,7 @@ def main():
             st.session_state.show_preferences = False
             st.rerun()
     else:
-        tabs = st.tabs(["Stock Analysis", "Economic Trends", "Investor Profiles"])
+        tabs = st.tabs(["Stock Analysis", "Economic Trends", "Investor Profiles", "Educational Resources"])
         
         with tabs[0]:
             stock_analysis_tab(dark_mode, advanced_mode)
@@ -518,6 +519,9 @@ def main():
         
         with tabs[2]:
             investor_profiles_tab(dark_mode)
+        
+        with tabs[3]:
+            display_educational_resources()
 
 if __name__ == "__main__":
     main()
