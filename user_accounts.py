@@ -2,37 +2,55 @@ import streamlit as st
 import bcrypt
 import pandas as pd
 from typing import Dict, List
+import json
+import os
 
-# In-memory user database (replace with a real database in production)
-users_db = {}
+# File to store user data
+USER_DATA_FILE = 'user_data.json'
+
+def load_users():
+    if os.path.exists(USER_DATA_FILE):
+        with open(USER_DATA_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_users(users):
+    with open(USER_DATA_FILE, 'w') as f:
+        json.dump(users, f)
+
+# Load user data
+users_db = load_users()
 
 def create_user(username: str, password: str) -> bool:
     if username in users_db:
         return False
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     users_db[username] = {
         'password': hashed_password,
         'preferences': {},
         'watchlist': []
     }
+    save_users(users_db)
     return True
 
 def authenticate_user(username: str, password: str) -> bool:
     if username not in users_db:
         return False
-    return bcrypt.checkpw(password.encode('utf-8'), users_db[username]['password'])
+    return bcrypt.checkpw(password.encode('utf-8'), users_db[username]['password'].encode('utf-8'))
 
 def get_user_preferences(username: str) -> Dict:
     return users_db[username]['preferences']
 
 def update_user_preferences(username: str, preferences: Dict) -> None:
     users_db[username]['preferences'] = preferences
+    save_users(users_db)
 
 def get_user_watchlist(username: str) -> List[str]:
     return users_db[username]['watchlist']
 
 def update_user_watchlist(username: str, watchlist: List[str]) -> None:
     users_db[username]['watchlist'] = watchlist
+    save_users(users_db)
 
 def get_personalized_recommendations(username: str) -> List[str]:
     preferences = get_user_preferences(username)
