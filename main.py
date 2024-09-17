@@ -11,6 +11,7 @@ import streamlit_lottie as st_lottie
 import requests
 import ta
 import numpy as np
+from user_accounts import create_user, authenticate_user, get_personalized_recommendations, update_user_preferences, get_user_watchlist, update_user_watchlist
 
 st.set_page_config(page_title="InvestSmartly", layout="wide")
 
@@ -39,9 +40,51 @@ def login_page():
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     
-    if st.button("Login", key="login_button"):
-        st.session_state.logged_in = True
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Login", key="login_button"):
+            if authenticate_user(username, password):
+                st.session_state.logged_in = True
+                st.session_state.username = username
+                st.rerun()
+            else:
+                st.error("Invalid username or password")
+    with col2:
+        if st.button("Register", key="register_button"):
+            st.session_state.register = True
+            st.rerun()
+
+# Registration page
+def registration_page():
+    st.markdown('<div class="futuristic-header">Register for InvestSmartly</div>', unsafe_allow_html=True)
+    
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    confirm_password = st.text_input("Confirm Password", type="password")
+    
+    if st.button("Register", key="register_submit"):
+        if password != confirm_password:
+            st.error("Passwords do not match")
+        elif create_user(username, password):
+            st.success("Registration successful! Please log in.")
+            st.session_state.register = False
+            st.rerun()
+        else:
+            st.error("Username already exists")
+
+# User preferences page
+def user_preferences_page():
+    st.markdown('<div class="futuristic-header">User Preferences</div>', unsafe_allow_html=True)
+    
+    risk_tolerance = st.select_slider("Risk Tolerance", options=["low", "medium", "high"])
+    sectors = st.multiselect("Preferred Sectors", ["Technology", "Healthcare", "Finance", "Consumer", "Energy"])
+    
+    if st.button("Save Preferences"):
+        update_user_preferences(st.session_state.username, {
+            "risk_tolerance": risk_tolerance,
+            "sectors": sectors
+        })
+        st.success("Preferences saved successfully!")
 
 # Rate stock function
 def rate_stock(ticker):
@@ -182,7 +225,10 @@ def main():
     load_css()
 
     if not hasattr(st.session_state, 'logged_in') or not st.session_state.logged_in:
-        login_page()
+        if hasattr(st.session_state, 'register') and st.session_state.register:
+            registration_page()
+        else:
+            login_page()
         return
 
     # Sidebar for user input and dark mode toggle
@@ -196,32 +242,70 @@ def main():
     # Advanced/Simple layout toggle
     advanced_mode = st.sidebar.checkbox("Advanced Mode", key="advanced_mode")
     
-    # Tabs for different sections
-    tabs = st.tabs(["Stock Analysis", "Economic Trends", "Investor Profiles"])
+    # User preferences
+    if st.sidebar.button("User Preferences"):
+        st.session_state.show_preferences = True
+        st.rerun()
     
-    with tabs[0]:
-        stock_analysis_tab(dark_mode, advanced_mode)
+    # Logout button
+    if st.sidebar.button("Logout"):
+        st.session_state.logged_in = False
+        st.session_state.username = None
+        st.rerun()
     
-    with tabs[1]:
-        economic_trends_tab(dark_mode)
-    
-    with tabs[2]:
-        investor_profiles_tab(dark_mode)
+    if hasattr(st.session_state, 'show_preferences') and st.session_state.show_preferences:
+        user_preferences_page()
+        if st.button("Back to Main"):
+            st.session_state.show_preferences = False
+            st.rerun()
+    else:
+        # Tabs for different sections
+        tabs = st.tabs(["Stock Analysis", "Economic Trends", "Investor Profiles"])
+        
+        with tabs[0]:
+            stock_analysis_tab(dark_mode, advanced_mode)
+        
+        with tabs[1]:
+            economic_trends_tab(dark_mode)
+        
+        with tabs[2]:
+            investor_profiles_tab(dark_mode)
 
 def stock_analysis_tab(dark_mode, advanced_mode):
+    st.markdown('<div class="futuristic-header">Stock Analysis</div>', unsafe_allow_html=True)
+    
+    # Get personalized recommendations
+    recommendations = get_personalized_recommendations(st.session_state.username)
+    
     # Stock selection
-    ticker = st.selectbox("Select a stock:", ["AAPL", "GOOGL", "MSFT", "AMZN", "FB"], key="stock_select")
+    ticker_options = ["AAPL", "GOOGL", "MSFT", "AMZN", "FB"] + recommendations
+    ticker = st.selectbox("Select a stock:", ticker_options, key="stock_select")
+
+    # Add to watchlist button
+    if st.button("Add to Watchlist"):
+        watchlist = get_user_watchlist(st.session_state.username)
+        if ticker not in watchlist:
+            watchlist.append(ticker)
+            update_user_watchlist(st.session_state.username, watchlist)
+            st.success(f"{ticker} added to your watchlist!")
+        else:
+            st.info(f"{ticker} is already in your watchlist.")
 
     with st.spinner("Fetching stock data..."):
         stock_info = get_stock_info(ticker)
 
     if stock_info:
         if advanced_mode:
-            st.markdown('<div class="futuristic-header">Advanced Stock Analysis</div>', unsafe_allow_html=True)
             advanced_mode_layout(ticker, stock_info, dark_mode)
         else:
-            st.markdown('<div class="futuristic-header">Simple Stock Analysis</div>', unsafe_allow_html=True)
             simple_mode_layout(ticker, stock_info, dark_mode)
+    
+    # Display personalized recommendations
+    st.markdown('<div class="futuristic-card recommendations">', unsafe_allow_html=True)
+    st.subheader("Personalized Recommendations")
+    for rec in recommendations:
+        st.write(f"- {rec}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def economic_trends_tab(dark_mode):
     st.markdown('<div class="futuristic-header">Economic Trends</div>', unsafe_allow_html=True)
