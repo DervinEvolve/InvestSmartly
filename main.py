@@ -344,7 +344,7 @@ def main():
     
     dark_mode = st.sidebar.checkbox("Dark Mode", key="dark_mode")
     if dark_mode:
-        st.markdown('<style>body {background-color: #1E1E1E; color: #FFFFFF;}</style>', unsafe_allow_html=True)
+        st.markdown('<style>body {background-color: #0a192f; color: #e6f1ff;}</style>', unsafe_allow_html=True)
     
     advanced_mode = st.sidebar.checkbox("Advanced Mode", key="advanced_mode")
     
